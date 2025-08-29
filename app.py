@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+import os
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LinearRegression, LogisticRegression
 from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
@@ -25,7 +26,7 @@ def go_to_upload():
     st.session_state.page = "upload"
 
 ###########################
-#      LANDING PAGE       #
+#         LANDING PAGE    #
 ###########################
 if st.session_state.page == "landing":
     st.markdown(
@@ -69,19 +70,36 @@ if st.session_state.page == "landing":
             go_to_upload()
 
 ###########################
-#    MULTI-MODEL PAGE     #
+#      DATA LOAD/ML PAGE  #
 ###########################
 if st.session_state.page == "upload":
     st.markdown(
         "<h1 style='color:#d6d6ee; text-align:center; letter-spacing:2px;'>Sharpner</h1>",
         unsafe_allow_html=True
     )
-    st.subheader("Upload Your Dataset")
-    upload_file = st.file_uploader("Choose a CSV file", type=["csv"])
+    st.subheader("Add Your Dataset")
 
-    if upload_file:
-        df = pd.read_csv(upload_file)
-        st.subheader("Data & Model Setup")
+    # --- Built-In OR Upload Option ---
+    dataset_dir = "datasets"
+    builtin = [f for f in os.listdir(dataset_dir) if f.endswith(".csv")]
+    upload_method = st.radio("Choose dataset source:",
+                             ["Use sample/built-in dataset", "Upload CSV file"])
+
+    df = None
+    if upload_method == "Use sample/built-in dataset":
+        choice = st.selectbox("Available datasets:", builtin)
+        if choice:
+            df = pd.read_csv(os.path.join(dataset_dir, choice))
+            st.success(f"Loaded built-in dataset: {choice}")
+    else:
+        uploaded = st.file_uploader("Upload CSV file", type=["csv"])
+        if uploaded:
+            df = pd.read_csv(uploaded)
+            st.success("Your file was uploaded.")
+
+    # --- ML workflow continues only if dataframe loaded ---
+    if isinstance(df, pd.DataFrame):
+        st.subheader("Preview & Feature Selection")
         st.dataframe(df.head(), use_container_width=True)
         st.caption(f"Rows: {df.shape[0]}, Columns: {df.shape[1]}")
         columns = df.columns.tolist()
@@ -216,8 +234,8 @@ if st.session_state.page == "upload":
                                         )
                                         model_metrics = results[mdl]["metrics"]
                                         metric_arr = np.array([results[mdl]["train"], results[mdl]["test"]])
-                                        df = pd.DataFrame(metric_arr, columns=model_metrics, index=["Train", "Test"])
-                                        st.dataframe(df.style.format("{:.3f}"), use_container_width=True)
+                                        df_metrics = pd.DataFrame(metric_arr, columns=model_metrics, index=["Train", "Test"])
+                                        st.dataframe(df_metrics.style.format("{:.3f}"), use_container_width=True)
                                         
                                         # Line chart
                                         fig, ax = plt.subplots(figsize=(2.9, 1.35))
@@ -259,4 +277,5 @@ if st.session_state.page == "upload":
                     st.error(f"An error occurred: {str(e)}")
                     st.error("Check your data for missing values, text columns, or insufficient samples.")
     else:
-        st.info("Please upload a CSV file to continue.")
+        st.info("Please choose or upload a dataset to continue.")
+
